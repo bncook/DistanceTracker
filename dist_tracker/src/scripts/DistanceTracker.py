@@ -35,13 +35,13 @@ class DistanceTracker:
         #parameters
         self.focal_length = 993.0               #the focal length of the camera 
         self.real_height = 1.25                 #the real height of the target object
-        self.image_center = (635.08, 469.80)    #the image center of the camera
+        self.image_center = (635.08, 479.80)    #the image center of the camera
         self.rectified = False                  #is the camera using the rectified image
-        self.show_color_mask = False            #publish the color mask
 
         self.pub = rospy.Publisher('dist_color_mask', Image, queue_size=10)
         self.heading_pub = rospy.Publisher('heading', Float64, queue_size=10)
         self.avg_pub = rospy.Publisher('average_heading', Float64, queue_size=10)
+        self.image_pub = rospy.Publisher('marked_image', Image, queue_size=10)
         self.subsample_ratio = 0.25
 
         #for heading averaging
@@ -119,12 +119,10 @@ class DistanceTracker:
     def set_rectified(self, rectified):
         self.rectified = rectified
 
-    def show(self, show):
-        self.show_color_mask = show
-
     def run(self, ros_data):
         """Run the Distance Tracker with the input from the camera"""
         bridge = CvBridge()
+        cv_image = None
         if self.rectified:
             cv_image = bridge.imgmsg_to_cv2(ros_data, desired_encoding='passthrough')
         else:
@@ -155,6 +153,14 @@ class DistanceTracker:
         self.heading_pub.publish(offset[0])
         self.avg_pub.publish(self.average)
 
+        #put a red circle on the image where the average heading is
+        center_x = int(self.average*self.focal_length/dist + self.image_center[0])
+        center_y = int(-1.0*offset[1]*self.focal_length/dist + self.image_center[1])
+        cv_marked_image = cv2.circle(cv_image, (center_x, center_y), 15, (0,0,255), 15)
+        marked_image = bridge.cv2_to_imgmsg(cv_marked_image, encoding='bgr8')
+        self.image_pub.publish(marked_image)
+        
+
 if __name__ == '__main__':
     rospy.init_node('dist_tracker', anonymous=True)
     tracker = DistanceTracker()    
@@ -162,8 +168,6 @@ if __name__ == '__main__':
         if ("--rectified" in sys.argv):
             tracker.set_rectified(True)
             rospy.Subscriber('/raspicam_node/image_rect_color', Image, tracker.run)
-        if ("--show" in sys.argv):
-            tracker.show(True)
     else:
         rospy.Subscriber('/raspicam_node/image/compressed', CompressedImage, tracker.run)
     rospy.spin()
