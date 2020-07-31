@@ -154,11 +154,12 @@ class DistanceTracker:
         self.avg_pub.publish(self.average)
 
         #put a red circle on the image where the average heading is
-        center_x = int(self.average*self.focal_length/dist + self.image_center[0])
-        center_y = int(-1.0*offset[1]*self.focal_length/dist + self.image_center[1])
-        cv_marked_image = cv2.circle(cv_image, (center_x, center_y), 15, (0,0,255), 15)
-        marked_image = bridge.cv2_to_imgmsg(cv_marked_image, encoding='bgr8')
-        self.image_pub.publish(marked_image)
+        if dist != 0:
+            center_x = int(self.average*self.focal_length/dist + self.image_center[0])
+            center_y = int(-1.0*offset[1]*self.focal_length/dist + self.image_center[1])
+            cv_marked_image = cv2.circle(cv_image, (center_x, center_y), 15, (0,0,255), 15)
+            marked_image = bridge.cv2_to_imgmsg(cv_marked_image, encoding='bgr8')
+            self.image_pub.publish(marked_image)
         
 
 if __name__ == '__main__':
